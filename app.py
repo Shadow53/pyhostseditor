@@ -1,6 +1,7 @@
 import sys
-import requests
+import urllib.request
 import os
+import configparser
 
 def getArg(arg):
     args = sys.argv
@@ -29,18 +30,48 @@ def printIfVerbose(msg):
     if getArg("verbose") or getArg("v"):
         print(msg)
 
+# Not used yet
+def isInteractive():
+    if getArg("interactive") == False and getArg("i") == False:
+        return False
+    return True
+
+def createDefaultConfig():
+    config = configparser.ConfigParser()
+    config['Servers'] = ["; Ad Servers",
+            "https://adaway.org/hosts.txt",
+			"http://winhelp2002.mvps.org/hosts.txt",
+			"http://hosts-file.net/.%5Cad_servers.txt",
+			"http://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext",
+            "; (Some) porn sites",
+            "https://cdn.mnbryant.com/hosts.txt",
+            "; Sites that can contain porn but do not exist for that purpose",
+            "https://cdn.mnbryant.com/hosts_pron_strict.txt"]
+    config['UserDefined'] = ["; These are written ipaddress = hostname",
+            "; e.g. 127.0.0.1 = localhost",
+            "; Or 74.125.224.72 = www.google.com"]
+    with open("hostseditor.ini", "w") as configfile:
+        config.write(configfile)
+
+
 def getRemoteHosts():
-    return ["https://adaway.org/hosts.txt",
+    config = configparser.ConfigParser()
+    config.read("hostseditor.ini")
+    servers = []
+    for url in config["Servers"]:
+        servers.append(url)
+    return url
+    """return ["https://adaway.org/hosts.txt",
 			"http://winhelp2002.mvps.org/hosts.txt",
 			"http://hosts-file.net/.%5Cad_servers.txt",
 			"http://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext",
 			"https://cdn.mnbryant.com/hosts.txt",
-            "https://cdn.mnbryant.com/hosts_pron_strict.txt"]
+            "https://cdn.mnbryant.com/hosts_pron_strict.txt"]"""
 
 def getHostsFileLocation():
     if sys.platform.startswith("linux"):
         return "/etc/hosts"
-    elif sys.platform == "windows":
+    elif sys.platform.startswith("windows"):
         # Needs check with environment variable to get correct location
         return os.path.join(os.getenv("SystemRoot"), "System32", "drivers", "etc", "hosts")
 
@@ -49,8 +80,8 @@ def getHostsFromFiles():
     hostsList = ["127.0.0.1 localhost localhost.localdomain"]
     for url in urlList:
         printIfVerbose("Downloading from " + url)
-        r = requests.get(url)
-        hListStr = r.text
+        r = urllib.request.urlopen(url)
+        hListStr = r.read().decode("utf-8")
         hList = hListStr.splitlines()
         hostsList = hostsList + hList
     printIfVerbose("Downloads complete")
@@ -85,6 +116,11 @@ def writeHostsFile():
     printIfVerbose("Finished writing to file")
 
 def run():
-    writeHostsFile()
+    if not os.access(getHostsFileLocation(), os.W_OK):
+        print("This program needs to be run with administrator privileges")
+        sys.exit(1)
+    else:
+        writeHostsFile()
 
-run()
+#run()
+print(getRemoteHosts())
