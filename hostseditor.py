@@ -37,36 +37,47 @@ def isInteractive():
     return True
 
 def createDefaultConfig():
-    config = configparser.ConfigParser()
-    config['Servers'] = ["; Ad Servers",
-            "https://adaway.org/hosts.txt",
-			"http://winhelp2002.mvps.org/hosts.txt",
-			"http://hosts-file.net/.%5Cad_servers.txt",
-			"http://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext",
-            "; (Some) porn sites",
-            "https://cdn.mnbryant.com/hosts.txt",
-            "; Sites that can contain porn but do not exist for that purpose",
-            "https://cdn.mnbryant.com/hosts_pron_strict.txt"]
-    config['UserDefined'] = ["; These are written ipaddress = hostname",
-            "; e.g. 127.0.0.1 = localhost",
-            "; Or 74.125.224.72 = www.google.com"]
-    with open("hostseditor.ini", "w") as configfile:
-        config.write(configfile)
+    file = '''
+[Servers]
+; Ad Servers
+servers = https://adaway.org/hosts.txt
+        http://winhelp2002.mvps.org/hosts.txt
+        http://hosts-file.net/.%5Cad_servers.txt
+        http://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext
+        ; Blocks (Some) porn sites
+        ;https://cdn.mnbryant.com/hosts.txt
+        ; Sites that can contain porn but do not exist for that purpose
+        ;https://cdn.mnbryant.com/hosts_pron_strict.txt
+[UserDefined]
+; These are written ipaddress = hostname
+; e.g. 127.0.0.1 = localhost
+; Or 74.125.224.72 = www.google.com
+'''
+    config = open("hostseditor.ini", "w")
+    config.write(file)
 
+def getConfigLocation():
+    if os.path.isfile("hostseditor.ini"):
+        return "hostseditor.ini"
+    elif os.path.isfile(getConfigInstallLocation()):
+        return getConfigInstallLocation()
+    else:
+        printIfVerbose("Could not find hostseditor.ini file. Creating in current directory.")
+        createDefaultConfig()
+        return "hostseditor.ini"
 
 def getRemoteHosts():
     config = configparser.ConfigParser()
-    config.read("hostseditor.ini")
-    servers = []
-    for url in config["Servers"]:
-        servers.append(url)
-    return url
-    """return ["https://adaway.org/hosts.txt",
-			"http://winhelp2002.mvps.org/hosts.txt",
-			"http://hosts-file.net/.%5Cad_servers.txt",
-			"http://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext",
-			"https://cdn.mnbryant.com/hosts.txt",
-            "https://cdn.mnbryant.com/hosts_pron_strict.txt"]"""
+    
+    config.read(getConfigLocation())
+    servers = config['Servers'].get("servers", raw=True).split("\n")
+    return servers
+    
+def getConfigInstallLocation():
+    if sys.platform.startswith("linux"):
+        return "/etc/hostseditor/hostseditor.ini"
+    elif sys.platform.startswith("windows"):
+        return os.path.join(os.getenv("ProgramFiles"), "hostseditor", "hostseditor.ini")
 
 def getHostsFileLocation():
     if sys.platform.startswith("linux"):
@@ -75,15 +86,21 @@ def getHostsFileLocation():
         # Needs check with environment variable to get correct location
         return os.path.join(os.getenv("SystemRoot"), "System32", "drivers", "etc", "hosts")
 
-def getHostsFromFiles():
-    urlList = getRemoteHosts()
+def getHostsList():
     hostsList = ["127.0.0.1 localhost localhost.localdomain"]
+    
+    config = configparser.ConfigParser()
+    config.read(getConfigLocation())
+    for ip in config['UserDefined']:
+        hostsList.append(ip + " " + config['UserDefined'][ip])
+    hostsList.append("")
+    urlList = getRemoteHosts()
     for url in urlList:
         printIfVerbose("Downloading from " + url)
         r = urllib.request.urlopen(url)
         hListStr = r.read().decode("utf-8")
         hList = hListStr.splitlines()
-        hostsList = hostsList + hList
+        hostsList += hList
     printIfVerbose("Downloads complete")
     return hostsList
 
@@ -97,7 +114,7 @@ def getOutputFileName():
         return out
 
 def writeHostsFile():
-    hostsList = getHostsFromFiles()
+    hostsList = getHostsList()
     outFile = getOutputFileName()
     bakFile = outFile + ".bak"
     if os.path.isfile(outFile):
@@ -116,11 +133,12 @@ def writeHostsFile():
     printIfVerbose("Finished writing to file")
 
 def run():
-    if not os.access(getHostsFileLocation(), os.W_OK):
+    if getArg("genconfig"):
+        createDefaultConfig()
+    elif not os.access(getOutputFileName(), os.W_OK):
         print("This program needs to be run with administrator privileges")
         sys.exit(1)
     else:
         writeHostsFile()
 
-#run()
-print(getRemoteHosts())
+run()
