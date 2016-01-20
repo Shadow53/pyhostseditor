@@ -76,13 +76,13 @@ def getRemoteHosts():
 def getConfigInstallLocation():
     if sys.platform.startswith("linux"):
         return "/etc/hostseditor/hostseditor.ini"
-    elif sys.platform.startswith("windows"):
+    elif sys.platform.startswith("win32"):
         return os.path.join(os.getenv("ProgramFiles"), "hostseditor", "hostseditor.ini")
 
 def getHostsFileLocation():
     if sys.platform.startswith("linux"):
         return "/etc/hosts"
-    elif sys.platform.startswith("windows"):
+    elif sys.platform.startswith("win32"):
         # Needs check with environment variable to get correct location
         return os.path.join(os.getenv("SystemRoot"), "System32", "drivers", "etc", "hosts")
 
