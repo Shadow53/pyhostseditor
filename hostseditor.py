@@ -97,7 +97,8 @@ def getHostsList():
     urlList = getRemoteHosts()
     for url in urlList:
         printIfVerbose("Downloading from " + url)
-        r = urllib.request.urlopen(url)
+        request = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0'})
+        r = urllib.request.urlopen(request)
         hListStr = r.read().decode("utf-8")
         hList = hListStr.splitlines()
         hostsList += hList
